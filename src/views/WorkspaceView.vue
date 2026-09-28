@@ -14,6 +14,7 @@ import { openPendingFiles } from '@/app/document/io/pending-open'
 import { openWebLinkFromLocation, withoutWebLinkParams } from '@/app/document/io/web-link'
 import { focusNodesByName } from '@/app/editor/selection/focus'
 import { notificationMessages } from '@/app/i18n/notifications'
+import { installPostroomBridge } from '@/app/postroom-studio-bridge'
 import { appRuntimeConfig } from '@/app/runtime/config'
 import { useKeyboard } from '@/app/shell/keyboard/use'
 import { useEditorMenu } from '@/app/shell/menu/use'
@@ -141,8 +142,10 @@ async function bindAssociatedFileOpen(): Promise<void> {
 }
 
 let stopWebMCP: (() => void) | undefined
+let stopPostroomBridge: (() => void) | undefined
 
 onMounted(async () => {
+  stopPostroomBridge = installPostroomBridge(getActiveStore)
   stopWebMCP = startWebMCP(getActiveStore)
   await startMCPRuntime(getActiveStore)
 
@@ -167,6 +170,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopPostroomBridge?.()
   stopWebMCP?.()
   void stopMCPRuntime()
   fileAssociationCleanup.value?.()

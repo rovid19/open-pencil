@@ -45,6 +45,7 @@ import {
   drawReflowedPathTextSilhouettes,
   isReflowedPathText
 } from './text/derived'
+import { textNodeToOutlinePath } from './text/outlines'
 
 function drawVisibleFills(
   r: SkiaRenderer,
@@ -701,6 +702,74 @@ function drawVectorPathStrokes(
   for (const outline of outlines) canvas.drawPath(outline, r.fillPaint)
 }
 
+function drawTextOutlineStroke(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  node: SceneNode,
+  stroke: SceneNode['strokes'][0],
+  color: Color,
+  outline: Path
+): void {
+  const alignedStroke =
+    stroke.align === 'CENTER' ? stroke : { ...stroke, weight: stroke.weight * 2 }
+  const draw = () =>
+    drawVectorPathStrokes(r, canvas, [outline], alignedStroke, color, node.strokeMiterLimit)
+
+  if (stroke.align === 'CENTER') {
+    draw()
+    return
+  }
+
+  canvas.save()
+  if (stroke.align === 'INSIDE') {
+    canvas.clipPath(outline, r.ck.ClipOp.Intersect, true)
+    draw()
+    canvas.restore()
+    return
+  }
+
+  const padding = Math.max(node.width, node.height, stroke.weight) + stroke.weight * 2
+  const outer = new r.ck.PathBuilder()
+  outer.addRect(r.ck.LTRBRect(-padding, -padding, node.width + padding, node.height + padding))
+  const outerPath = outer.detachAndDelete()
+  const outside = r.ck.Path.MakeFromOp(outerPath, outline, r.ck.PathOp.Difference)
+  outerPath.delete()
+  if (outside) {
+    canvas.clipPath(outside, r.ck.ClipOp.Intersect, true)
+    draw()
+    outside.delete()
+  }
+  canvas.restore()
+}
+
+function drawUnoutlinedTextStroke(
+  r: SkiaRenderer,
+  canvas: Canvas,
+  node: SceneNode,
+  stroke: SceneNode['strokes'][0],
+  color: Color
+): void {
+  configureStrokePaint(r, node, stroke, color)
+  r.strokePaint.setPathEffect(null)
+  withTextParagraph(
+    r,
+    node,
+    r.ck.BLACK,
+    {
+      halfLeading: true,
+      foregroundPaint: r.strokePaint
+    },
+    (paragraph) => {
+      canvas.save()
+      if (shouldClipTextToLayoutBox(node)) {
+        canvas.clipRect(r.ck.LTRBRect(0, 0, node.width, node.height), r.ck.ClipOp.Intersect, false)
+      }
+      canvas.drawParagraph(paragraph, 0, textVerticalOffset(node, paragraph.getHeight()))
+      canvas.restore()
+    }
+  )
+}
+
 function drawRegularStroke(
   r: SkiaRenderer,
   canvas: Canvas,
@@ -750,6 +819,14 @@ function drawNodeStroke(
   if (!sg) {
     if (vectorPaths) {
       drawVectorPathStrokes(r, canvas, vectorPaths, stroke, sc, node.strokeMiterLimit)
+    } else if (node.type === 'TEXT') {
+      const outline = textNodeToOutlinePath(r, node)
+      if (outline) {
+        drawTextOutlineStroke(r, canvas, node, stroke, sc, outline)
+        outline.delete()
+      } else {
+        drawUnoutlinedTextStroke(r, canvas, node, stroke, sc)
+      }
     } else drawRegularStroke(r, canvas, node, rect, hasRadius, stroke, sc)
     return
   }

@@ -235,6 +235,20 @@ function renderTextNode(
     'letter-spacing': node.letterSpacing ? round(node.letterSpacing) : undefined
   }
 
+  const stroke = node.strokes.find((item) => item.visible)
+  if (stroke) {
+    attrs.stroke = formatColor(stroke.color, 1, colorSpace)
+    attrs['stroke-width'] = round(stroke.weight)
+    attrs['stroke-opacity'] = stroke.opacity < 1 ? round(stroke.opacity) : undefined
+    attrs['stroke-linecap'] =
+      stroke.cap && stroke.cap !== 'NONE' ? SVG_STROKE_CAP[stroke.cap] : undefined
+    attrs['stroke-linejoin'] = stroke.join ? SVG_STROKE_JOIN[stroke.join] : undefined
+    attrs['stroke-dasharray'] = stroke.dashPattern?.length
+      ? stroke.dashPattern.map((value) => round(value)).join(' ')
+      : undefined
+    attrs['paint-order'] = 'fill stroke'
+  }
+
   const x = textXForNode(node, direction)
   const y = node.fontSize || 14
 

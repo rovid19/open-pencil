@@ -34,13 +34,17 @@ import type { WebFontFetch, WebFontProviderId } from '#core/text/web-fonts'
 
 type FindLocalFontOptions = { allowVariable?: boolean }
 
+function bundledFontURL(path: string): string {
+  return typeof document === 'undefined' ? path : new URL(path.slice(1), document.baseURI).href
+}
+
 const BUNDLED_FONTS: Record<string, string> = {
-  'Inter|Regular': '/Inter-Regular.ttf',
-  'Inter|Medium': '/Inter-Medium.ttf',
-  'Inter|SemiBold': '/Inter-SemiBold.ttf',
-  'Inter|Bold': '/Inter-Bold.ttf',
-  'Inter|ExtraBold': '/Inter-ExtraBold.ttf',
-  'Noto Naskh Arabic|Regular': '/NotoNaskhArabic-Regular.ttf'
+  'Inter|Regular': bundledFontURL('/Inter-Regular.ttf'),
+  'Inter|Medium': bundledFontURL('/Inter-Medium.ttf'),
+  'Inter|SemiBold': bundledFontURL('/Inter-SemiBold.ttf'),
+  'Inter|Bold': bundledFontURL('/Inter-Bold.ttf'),
+  'Inter|ExtraBold': bundledFontURL('/Inter-ExtraBold.ttf'),
+  'Noto Naskh Arabic|Regular': bundledFontURL('/NotoNaskhArabic-Regular.ttf')
 }
 
 export class FontManager {
